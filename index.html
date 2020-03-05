@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+	<title>Pi Chart Creator by Fred Adams</title>
+	<link rel="shortcut icon" href="favicon.png">
+
+	<style>
+	
+	*{
+		margin:0;
+		padding:0;
+		font-size: 1.35rem;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+		color: #333;
+	}
+
+	body {
+		overflow-y: hidden;
+	}
+
+	p.credit {
+		position: absolute;
+		bottom: .5rem;
+		right: .5rem;
+	}
+	p.credit, p.credit * {
+		font-size: 1.05rem;
+	}
+
+	canvas#chart {
+		float: left;
+		margin-left: .5rem;
+		margin-top: .5rem;
+		width: calc(100vw - 25rem - 1rem);
+		height: calc(100vw - 25rem - 1rem);
+	}
+
+	.right {
+		width: 25rem;
+		margin-left: .5rem;
+		float: right;
+		background-color: #f0f0f0;
+		min-height: 100vh;
+		box-sizing: border-box;
+		padding: 2rem;
+	}
+
+	.right input {
+		width: calc(100% - 7rem);
+		transition: border-color .25s, box-shadow .25s;
+	}
+	.right input::placeholder {
+		font-size: 1rem;
+		opacity: .5;
+		color: #333;
+	}
+
+	.right input, .right button {
+		outline: none;
+		border: none;
+		border-radius: 4px;
+		border: 1px solid #ccc;
+		float: left;
+		padding: .25rem .5rem;
+		box-sizing: border-box;
+		line-height: 1.25rem;
+		height: 2.25rem;
+	}
+
+	.right input:focus, .right button:hover{
+		box-shadow: 0 2px 8px rgba(0,0,0,.15);
+		border-color: #333 !important;
+	}
+
+	.right button {
+		width: 6.5rem;
+		margin-left: .5rem;
+		transition: transform .25s, box-shadow .25s, color .25s, background-color .25s, border-color .25s;
+		margin-bottom: 1.5rem;
+		cursor: pointer;
+	}
+	.right button:hover {
+		color: #fff;
+		background-color: #333;
+	}
+	.right button:active {
+		box-shadow: none;
+	}
+
+	.right button.fullWidth {
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.right p#info {
+		clear: both;
+		overflow: hidden;
+		margin: 2rem 0;
+		background-color: #fff;
+		padding: .75rem 1rem;
+		line-height: 1.75;
+		border-radius: 4px;
+		box-shadow: 0 4px 16px rgba(0,0,0,.15);
+	}
+
+	@media only screen and (max-height: 850px) {
+		canvas#chart {
+			width: 700px !important;
+			height: 700px !important;
+			margin-left: calc(((100vw - 25rem) - 700px) / 2);
+			margin-top: calc((100vh - 700px) / 2);
+		}
+	}
+	@media only screen and (max-height: 850px) and (max-width: 1150px) {
+		canvas#chart {
+			margin-left: calc(((100vw - 17.5rem) - 700px) / 2);
+		}
+	}
+
+	@media only screen and (max-width: 1150px) {
+		.right button, .right input {
+			width: 100%;
+			margin-left: 0;
+			margin-bottom: .75rem;
+		}
+		.right button {
+			margin-bottom: 1.25rem;
+		}
+
+		canvas#chart {
+			width: calc(100vw - 17.5rem - 1rem);
+			height: calc(100vw - 17.5rem - 1rem);
+		}
+
+		.right {
+			width: 17.5rem;
+			padding: 1rem;
+		}
+
+		.right p#info, .right p#info * {
+			font-size: 1.15rem;
+		}
+	}
+
+	</style>
+</head>
+<body>
+	<canvas id="chart" height="800" width="800"></canvas>
+	<div class="right">
+		<input id="generateText" spellcheck="false" placeholder='Enter Percentages With ","'></input>
+		<button onclick="draw();">Generate</button>
+		<p id="info"><span style="opacity:.35">(info will be included here)</span></p>
+		<button class="fullWidth" onclick="download()">Download</button>
+	</div>
+	<p class="credit">Built by <a href="https://xtrp.io/">Fred Adams</a></p>
+	
+	<script>
+
+	/*
+	NOTE:
+
+	This code is BAD. Most of it was copied and pasted from StackOverflow, with a mix of ES5, ES6, and simply just bad code with inconsistent variable and function names.
+
+	This is only meant to be a demo at the moment, only to work and not to be maintainable or scalable.
+
+	Credit to various StackOverflow users for the majority of the actual code and functions.
+	*/
+
+	function hexToRgb(hex) {
+		var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+		return result ? {
+			r: parseInt(result[1], 16),
+			g: parseInt(result[2], 16),
+			b: parseInt(result[3], 16)
+		} : null;
+	}
+
+	function shuffle(array) {
+		array.sort(() => Math.random() - 0.5);
+	}
+
+	var draw = function(){ 
+		var canvas = document.getElementById("chart");
+		var ctx = canvas.getContext("2d");
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+		var chartRadius = 380;
+		var canvasWidth = 800;
+
+		// Colors
+		var colorSchemes = {
+			"default": [
+				"#2ecc71",
+				"#3498db",
+				"#9b59b6",
+				"#34495e",
+				"#f1c40f",
+				"#e67e22",
+				"#c0392b",
+				"#7f8c8d"
+			]
+		}
+
+		Object.keys(colorSchemes).forEach((paletteKey) => {
+			let x = colorSchemes[paletteKey].slice();
+			shuffle(x);
+			colorSchemes[paletteKey] = x.slice();
+		});
+
+		// List of Angles
+		var angles = []
+		document.getElementById("generateText").value.split(", ").join(",").split(",").forEach((percent) => {
+			angles.push(Math.PI * (2 * (percent.split("%").join("") / 100)));
+		})
+
+		// Temporary variables, to store each arc angles
+		var beginAngle = 0;
+		var endAngle = 0;
+
+		var colors = Object.values(colorSchemes)[0];
+
+		var infoElm = document.getElementById("info");
+		infoElm.innerHTML = "";
+
+		// rotate randomly
+		document.getElementById("chart").style.transform = "rotate(" + Math.floor(Math.random() * 360) + "deg)";
+
+		// Iterate through the angles
+		for(var i = 0; i < angles.length; i = i + 1) {
+			// Begin where we left off
+			beginAngle = endAngle;
+			// End Angle
+			endAngle = endAngle + angles[i];
+
+			ctx.beginPath();
+			// Fill color
+			const curColor = colors[i % colors.length];
+			ctx.fillStyle = curColor;
+			ctx.strokeStyle = "white";
+			ctx.lineWidth = 5;
+
+			// Same code as before
+			ctx.moveTo((canvasWidth / 2), (canvasWidth / 2));
+			ctx.arc((canvasWidth / 2), (canvasWidth / 2), chartRadius, beginAngle, endAngle);
+			ctx.lineTo((canvasWidth / 2), (canvasWidth / 2));
+			ctx.stroke();
+
+			// Fill
+			ctx.fill();
+
+			// cur color hex
+			curColorHex = hexToRgb(curColor);
+
+			// update info element
+			infoElm.innerHTML += "<span style='color: " + curColor + ";'>Color (" + [curColorHex.r, curColorHex.g, curColorHex.b].join(", ") + "): " + ((angles[i] / Math.PI / 2) * 100) + "%</span><br>";
+		}
+	}
+
+	var download = function(){
+		var link = document.createElement('a');
+		link.download = 'chart.png';
+		link.href = document.getElementById('chart').toDataURL();
+		link.click();
+	}
+
+	</script>
+</body>
+</html>
